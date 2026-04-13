@@ -34,6 +34,7 @@ public class AITuberController : MonoBehaviour
     [Header("UI")]
     public TMP_Text responseText;
     public WorldCommentUI worldCommentUI;
+    public CharacterSettingsController characterSettingsController;
     public string commentUserName = "AI";
     public bool showChatComments = true;
 
@@ -74,9 +75,11 @@ public class AITuberController : MonoBehaviour
         {
             var requestPayload = new ChatRequest
             {
-                userId = "unity",
+                userId = characterSettingsController != null && !string.IsNullOrWhiteSpace(characterSettingsController.CurrentSettings.characterName)
+                    ? characterSettingsController.CurrentSettings.characterName
+                    : "unity",
                 prompt = prompt,
-                context = null,
+                context = characterSettingsController != null ? characterSettingsController.BuildCharacterContext() : null,
                 return_base64 = requestBase64Audio,
             };
 
@@ -293,5 +296,45 @@ public static class WavUtility
         AudioClip audioClip = AudioClip.Create(clipName, sampleCount / channels, channels, sampleRate, false);
         audioClip.SetData(audioData, 0);
         return audioClip;
+    }
+
+    public static byte[] GetWavBytes(AudioClip clip)
+    {
+        if (clip == null)
+        {
+            throw new ArgumentNullException(nameof(clip));
+        }
+
+        int channels = clip.channels;
+        int sampleRate = clip.frequency;
+        int sampleCount = clip.samples * channels;
+        float[] samples = new float[sampleCount];
+        clip.GetData(samples, 0);
+
+        byte[] wav = new byte[44 + sampleCount * 2];
+        System.Buffer.BlockCopy(Encoding.ASCII.GetBytes("RIFF"), 0, wav, 0, 4);
+        System.Buffer.BlockCopy(BitConverter.GetBytes(wav.Length - 8), 0, wav, 4, 4);
+        System.Buffer.BlockCopy(Encoding.ASCII.GetBytes("WAVE"), 0, wav, 8, 4);
+        System.Buffer.BlockCopy(Encoding.ASCII.GetBytes("fmt "), 0, wav, 12, 4);
+        System.Buffer.BlockCopy(BitConverter.GetBytes(16), 0, wav, 16, 4);
+        System.Buffer.BlockCopy(BitConverter.GetBytes((short)1), 0, wav, 20, 2);
+        System.Buffer.BlockCopy(BitConverter.GetBytes((short)channels), 0, wav, 22, 2);
+        System.Buffer.BlockCopy(BitConverter.GetBytes(sampleRate), 0, wav, 24, 4);
+        System.Buffer.BlockCopy(BitConverter.GetBytes(sampleRate * channels * 2), 0, wav, 28, 4);
+        System.Buffer.BlockCopy(BitConverter.GetBytes((short)(channels * 2)), 0, wav, 32, 2);
+        System.Buffer.BlockCopy(BitConverter.GetBytes((short)16), 0, wav, 34, 2);
+        System.Buffer.BlockCopy(Encoding.ASCII.GetBytes("data"), 0, wav, 36, 4);
+        System.Buffer.BlockCopy(BitConverter.GetBytes(sampleCount * 2), 0, wav, 40, 4);
+
+        int offset = 44;
+        for (int i = 0; i < sampleCount; i++)
+        {
+            short intData = (short)(Mathf.Clamp(samples[i], -1f, 1f) * short.MaxValue);
+            byte[] byteData = BitConverter.GetBytes(intData);
+            wav[offset++] = byteData[0];
+            wav[offset++] = byteData[1];
+        }
+
+        return wav;
     }
 }
