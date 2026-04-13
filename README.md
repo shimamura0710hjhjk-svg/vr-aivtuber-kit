@@ -69,6 +69,15 @@ Unity Editor のメニュー `Build > Build Windows Standalone` または `Build
 2. `SendTextInput()` をボタンに割り当て
 3. `AITuberController` が既存の `/chat` 送信を使って返答を取得します
 
+### Play Mode テスト
+- `Assets/Tests/PlayModeTests.cs` に Play Mode テストを追加しました。
+- Unity の Test Runner で `Play Mode` テストを実行できます。
+- テストを実行するには Unity Test Framework がプロジェクトにインストールされている必要があります。
+- テスト内容:
+  - `WorldCommentUI` がコメントを追加／削除できること
+  - コメントの全削除機能が動作すること
+  - `WavUtility` の WAV 変換が音声データを保持して再生成できること
+
 ### キャラクター設定画面
 1. `CharacterSettingsController` を Unity シーンに追加
 2. `settingsPanel` に設定画面のパネルを割り当てる
