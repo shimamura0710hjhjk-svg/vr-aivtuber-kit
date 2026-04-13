@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VR AITuber Remote Control</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #121212; color: #f7f7f7; }
+    .container { max-width: 500px; margin: 0 auto; padding: 24px; }
+    h1 { margin-bottom: 12px; font-size: 1.8rem; }
+    .card { background: #1f1f1f; border-radius: 16px; padding: 18px; margin-bottom: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); }
+    .button-group, button { width: 100%; margin-top: 10px; }
+    button { border: none; border-radius: 10px; padding: 14px; font-size: 1rem; cursor: pointer; color: #fff; background: #2d88ff; }
+    button.secondary { background: #4d4d4d; }
+    button.danger { background: #d9534f; }
+    button.small { width: auto; margin-right: 10px; }
+    input, textarea { width: 100%; padding: 12px; margin-top: 10px; border-radius: 10px; border: 1px solid #333; background: #0f0f0f; color: #fff; }
+    .status { margin-top: 12px; font-size: .95rem; color: #a8a8a8; min-height: 1.4rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>VR AITuber Remote</h1>
+    <div class="card">
+      <strong>チャット操作</strong>
+      <textarea id="chatInput" rows="4" placeholder="AIに話しかけるメッセージを入力"></textarea>
+      <button id="sendChatButton">送信</button>
+    </div>
+    <div class="card">
+      <strong>モデル反応</strong>
+      <div class="button-group">
+        <button id="tapButton">タップ / 触る</button>
+        <button id="petHeadButton" class="secondary">頭をなでる</button>
+        <button id="petBellyButton" class="secondary">お腹をなでる</button>
+        <button id="punchButton" class="danger">げんこつ</button>
+      </div>
+    </div>
+    <div class="card">
+      <strong>キャラクター状態</strong>
+      <p>表情: <span id="emotionValue">-</span></p>
+      <p>直近の反応: <span id="interactionValue">-</span></p>
+      <p>タップ: <span id="tapCount">0</span> / 頭なで: <span id="petHeadCount">0</span> / お腹なで: <span id="petBellyCount">0</span> / げんこつ: <span id="punchCount">0</span></p>
+    </div>
+    <div class="card">
+      <strong>ライブプレビュー</strong>
+      <img id="streamImage" src="/remote/frame" alt="Stream preview" style="width:100%; border-radius:12px; background:#000; min-height:200px;" />
+      <p class="status" id="frameStatus">フレームを待っています…</p>
+    </div>
+    <div class="card">
+      <strong>操作メモ</strong>
+      <p>Unityアプリがこのバックエンドと接続されていれば、スマホから命令を送ることができます。モデルの反応は Unity 側で表示されます。</p>
+      <p class="status" id="statusMessage">読み込み中...</p>
+    </div>
+  </div>
+  <script>
+    const statusMessage = document.getElementById('statusMessage');
+    const chatInput = document.getElementById('chatInput');
+
+    async function sendCommand(command) {
+      try {
+        const response = await fetch('/remote/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(command),
+        });
+        if (!response.ok) {
+          const error = await response.text();
+          setStatus('送信失敗: ' + error);
+          return;
+        }
+        const data = await response.json();
+        setStatus('送信完了: ' + JSON.stringify(data));
+      } catch (err) {
+        setStatus('通信エラー: ' + err.message);
+      }
+    }
+
+    function setStatus(message) {
+      statusMessage.textContent = message;
+    }
+
+    document.getElementById('sendChatButton').addEventListener('click', () => {
+      const text = chatInput.value.trim();
+      if (!text) {
+        setStatus('メッセージを入力してください。');
+        return;
+      }
+      sendCommand({ type: 'chat', prompt: text });
+    });
+
+    document.getElementById('tapButton').addEventListener('click', () => {
+      sendCommand({ type: 'interaction', event: 'tap', region: 'body' });
+    });
+    document.getElementById('petHeadButton').addEventListener('click', () => {
+      sendCommand({ type: 'interaction', event: 'pet', region: 'head' });
+    });
+    document.getElementById('petBellyButton').addEventListener('click', () => {
+      sendCommand({ type: 'interaction', event: 'pet', region: 'belly' });
+    });
+    document.getElementById('punchButton').addEventListener('click', () => {
+      sendCommand({ type: 'interaction', event: 'punch', region: 'body' });
+    });
+
+    async function refreshState() {
+      try {
+        const response = await fetch('/remote/state');
+        if (!response.ok) {
+          throw new Error('状態取得に失敗しました');
+        }
+        const state = await response.json();
+        document.getElementById('emotionValue').textContent = state.emotion || '-';
+        document.getElementById('interactionValue').textContent = state.last_interaction || '-';
+        document.getElementById('tapCount').textContent = state.tap_count;
+        document.getElementById('petHeadCount').textContent = state.pet_head_count;
+        document.getElementById('petBellyCount').textContent = state.pet_belly_count;
+        document.getElementById('punchCount').textContent = state.punch_count;
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+
+    async function refreshFrame() {
+      const img = document.getElementById('streamImage');
+      const status = document.getElementById('frameStatus');
+      img.src = '/remote/frame?ts=' + Date.now();
+      try {
+        const response = await fetch(img.src, { method: 'HEAD' });
+        if (response.ok) {
+          status.textContent = 'ライブプレビュー更新中';
+        } else {
+          status.textContent = 'プレビューを取得できませんでした。';
+        }
+      } catch (err) {
+        status.textContent = 'プレビューの読み込みに失敗しました。';
+      }
+    }
+
+    setInterval(refreshState, 1000);
+    setInterval(refreshFrame, 1200);
+    setStatus('準備完了。ボタンを押して操作してください。');
+  </script>
+</body>
+</html>

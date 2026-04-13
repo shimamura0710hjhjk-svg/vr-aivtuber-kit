@@ -5,7 +5,9 @@ import uuid
 from typing import List, Optional
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,6 +22,7 @@ YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
 YOUTUBE_COMMENT_URL = "https://www.googleapis.com/youtube/v3/commentThreads"
 
 app = FastAPI(title="VR AITuber Backend")
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 
 class ChatRequest(BaseModel):
@@ -72,9 +75,126 @@ class VoiceResponse(BaseModel):
     duration_ms: int
 
 
+class RemoteCommandRequest(BaseModel):
+    type: str
+    prompt: Optional[str] = None
+    event: Optional[str] = None
+    region: Optional[str] = None
+
+
+class RemoteCommand(BaseModel):
+    id: int
+    type: str
+    prompt: Optional[str] = None
+    event: Optional[str] = None
+    region: Optional[str] = None
+    timestamp: float
+
+
+class RemoteState(BaseModel):
+    emotion: Optional[str] = None
+    last_interaction: Optional[str] = None
+    tap_count: int = 0
+    pet_head_count: int = 0
+    pet_belly_count: int = 0
+    punch_count: int = 0
+    timestamp: float = 0.0
+
+
+REMOTE_COMMANDS: List[RemoteCommand] = []
+REMOTE_STATE: RemoteState = RemoteState(timestamp=time.time())
+REMOTE_FRAME_PATH = os.path.join(BASE_DIR, "static", "latest_frame.jpg")
+NEXT_REMOTE_COMMAND_ID = 1
+MAX_REMOTE_COMMANDS = 200
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "message": "backend running"}
+
+
+@app.get("/remote", response_class=HTMLResponse)
+def remote_control_page():
+    html_path = os.path.join(BASE_DIR, "static", "remote.html")
+    if not os.path.exists(html_path):
+        raise HTTPException(status_code=500, detail="Remote control page is missing.")
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.post("/remote/command", response_model=RemoteCommand)
+def enqueue_remote_command(req: RemoteCommandRequest):
+    global NEXT_REMOTE_COMMAND_ID
+
+    if req.type not in {"chat", "interaction"}:
+        raise HTTPException(status_code=400, detail="Unsupported remote command type.")
+
+    command = RemoteCommand(
+        id=NEXT_REMOTE_COMMAND_ID,
+        type=req.type,
+        prompt=req.prompt,
+        event=req.event,
+        region=req.region,
+        timestamp=time.time(),
+    )
+    NEXT_REMOTE_COMMAND_ID += 1
+    REMOTE_COMMANDS.append(command)
+    if len(REMOTE_COMMANDS) > MAX_REMOTE_COMMANDS:
+        REMOTE_COMMANDS.pop(0)
+    return command
+
+
+@app.get("/remote/commands", response_model=List[RemoteCommand])
+def get_remote_commands(last_id: int = Query(0, ge=0)):
+    return [cmd for cmd in REMOTE_COMMANDS if cmd.id > last_id]
+
+
+@app.get("/remote/state", response_model=RemoteState)
+def get_remote_state():
+    return REMOTE_STATE
+
+
+@app.post("/remote/state", response_model=RemoteState)
+def update_remote_state(state: RemoteState):
+    global REMOTE_STATE
+    REMOTE_STATE = RemoteState(
+        emotion=state.emotion,
+        last_interaction=state.last_interaction,
+        tap_count=state.tap_count,
+        pet_head_count=state.pet_head_count,
+        pet_belly_count=state.pet_belly_count,
+        punch_count=state.punch_count,
+        timestamp=time.time(),
+    )
+    return REMOTE_STATE
+
+
+@app.post("/remote/frame")
+def upload_remote_frame(frame: dict):
+    frame_base64 = frame.get("frame_base64")
+    if not frame_base64:
+        raise HTTPException(status_code=400, detail="Missing frame_base64 field.")
+
+    try:
+        frame_bytes = base64.b64decode(frame_base64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 frame data: {exc}")
+
+    with open(REMOTE_FRAME_PATH, "wb") as f:
+        f.write(frame_bytes)
+
+    return {"status": "ok", "timestamp": time.time()}
+
+
+@app.get("/remote/frame")
+def get_remote_frame():
+    if not os.path.exists(REMOTE_FRAME_PATH):
+        raise HTTPException(status_code=404, detail="Frame not available yet.")
+
+    with open(REMOTE_FRAME_PATH, "rb") as f:
+        data = f.read()
+
+    return Response(content=data, media_type="image/jpeg")
 
 
 @app.post("/chat", response_model=ChatResponse)

@@ -49,7 +49,23 @@ public class AITuberController : MonoBehaviour
     public int angryBlendShapeIndex = 2;
     public int surprisedBlendShapeIndex = 3;
 
+    [Header("Animator")]
+    public Animator characterAnimator;
+    public string happyTrigger = "Happy";
+    public string sadTrigger = "Sad";
+    public string angryTrigger = "Angry";
+    public string surprisedTrigger = "Surprised";
+    public string cryTrigger = "Cry";
+
     public bool IsThinking { get; private set; }
+
+    public string currentEmotion = "neutral";
+    public string lastInteraction = "";
+    public int tapCount;
+    public int petHeadCount;
+    public int petBellyCount;
+    public int punchCount;
+    private Coroutine emotionResetRoutine;
 
     public void SendChat(string prompt)
     {
@@ -66,6 +82,88 @@ public class AITuberController : MonoBehaviour
         }
 
         StartCoroutine(PostChatCoroutine(prompt));
+    }
+
+    public void ReactToInteraction(string interactionType, string region = "body")
+    {
+        if (worldCommentUI == null)
+        {
+            Debug.LogWarning("WorldCommentUI is not assigned. Cannot display interaction response.");
+            return;
+        }
+
+        string responseText = null;
+        interactionType = (interactionType ?? "").Trim().ToLowerInvariant();
+        region = (region ?? "body").Trim().ToLowerInvariant();
+
+        switch (interactionType)
+        {
+            case "tap":
+                tapCount++;
+                lastInteraction = region == "head" ? "頭を軽くタップ" : "体をタップ";
+                if (tapCount > 5)
+                {
+                    responseText = "ちょっと触りすぎだよ…やさしくして。";
+                    ApplyEmotion("angry");
+                }
+                else if (region == "head")
+                {
+                    responseText = "その頭、くすぐったいよ…でも悪くないかも。";
+                    ApplyEmotion("surprised");
+                }
+                else
+                {
+                    responseText = "触られたよ。もっと優しくしてね。";
+                    ApplyEmotion("happy");
+                }
+                break;
+            case "pet":
+                if (region == "head")
+                {
+                    petHeadCount++;
+                    lastInteraction = "頭をなでられた";
+                    responseText = "頭いい子だね。そんなにやさしくしてくれるの、うれしい。";
+                    ApplyEmotion("happy");
+                }
+                else if (region == "belly")
+                {
+                    petBellyCount++;
+                    lastInteraction = "お腹をなでられた";
+                    responseText = "そこはちょっと恥ずかしいけど…ふふっ。";
+                    ApplyEmotion("surprised");
+                }
+                else
+                {
+                    lastInteraction = "なでなでされた";
+                    responseText = "なでなで、気持ちいいかも。";
+                    ApplyEmotion("happy");
+                }
+                break;
+            case "punch":
+                punchCount++;
+                lastInteraction = "げんこつされた";
+                if (punchCount >= 2)
+                {
+                    responseText = "痛いよ…もう泣いちゃいそう…";
+                    ApplyEmotion("sad");
+                }
+                else
+                {
+                    responseText = "そんなに強くしないでよ！";
+                    ApplyEmotion("angry");
+                }
+                break;
+            default:
+                lastInteraction = "不明な反応";
+                responseText = "反応したよ。";
+                ApplyEmotion("surprised");
+                break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(responseText))
+        {
+            worldCommentUI.AddComment(commentUserName, responseText);
+        }
     }
 
     private IEnumerator PostChatCoroutine(string prompt)
@@ -120,7 +218,11 @@ public class AITuberController : MonoBehaviour
                 worldCommentUI.AddComment(commentUserName, response.text);
             }
 
-            ApplyEmotion(response.emotion);
+            if (!string.IsNullOrWhiteSpace(response.emotion))
+            {
+                lastInteraction = "AIが返信";
+                ApplyEmotion(response.emotion);
+            }
 
             if (!string.IsNullOrEmpty(response.audio_base64))
             {
@@ -165,27 +267,34 @@ public class AITuberController : MonoBehaviour
         }
 
         emotion = emotion.Trim().ToLowerInvariant();
+        currentEmotion = emotion;
         ResetBlendShapes();
+        SetAnimatorTriggerForEmotion(emotion);
 
         switch (emotion)
         {
             case "happy":
             case "joy":
                 SetBlendShape(happyBlendShapeIndex, 100);
+                StartCoroutine(ResetEmotionAfterDelay(2.0f));
                 break;
             case "sad":
             case "sorrow":
                 SetBlendShape(sadBlendShapeIndex, 100);
+                StartCoroutine(ResetEmotionAfterDelay(3.0f));
                 break;
             case "angry":
             case "anger":
                 SetBlendShape(angryBlendShapeIndex, 100);
+                StartCoroutine(ResetEmotionAfterDelay(2.5f));
                 break;
             case "surprised":
             case "surprise":
                 SetBlendShape(surprisedBlendShapeIndex, 100);
+                StartCoroutine(ResetEmotionAfterDelay(2.0f));
                 break;
             default:
+                StartCoroutine(ResetEmotionAfterDelay(1.5f));
                 break;
         }
     }
@@ -201,6 +310,54 @@ public class AITuberController : MonoBehaviour
         faceRenderer.SetBlendShapeWeight(sadBlendShapeIndex, 0f);
         faceRenderer.SetBlendShapeWeight(angryBlendShapeIndex, 0f);
         faceRenderer.SetBlendShapeWeight(surprisedBlendShapeIndex, 0f);
+    }
+
+    private void SetAnimatorTriggerForEmotion(string emotion)
+    {
+        if (characterAnimator == null)
+        {
+            return;
+        }
+
+        switch (emotion)
+        {
+            case "happy":
+            case "joy":
+                characterAnimator.SetTrigger(happyTrigger);
+                break;
+            case "sad":
+            case "sorrow":
+                characterAnimator.SetTrigger(sadTrigger);
+                break;
+            case "angry":
+            case "anger":
+                characterAnimator.SetTrigger(angryTrigger);
+                break;
+            case "surprised":
+            case "surprise":
+                characterAnimator.SetTrigger(surprisedTrigger);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private IEnumerator ResetEmotionAfterDelay(float delay)
+    {
+        if (emotionResetRoutine != null)
+        {
+            StopCoroutine(emotionResetRoutine);
+        }
+
+        emotionResetRoutine = ResetEmotionCoroutine(delay);
+        yield return emotionResetRoutine;
+    }
+
+    private IEnumerator ResetEmotionCoroutine(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ResetBlendShapes();
+        currentEmotion = "neutral";
     }
 
     private void SetBlendShape(int index, float weight)
