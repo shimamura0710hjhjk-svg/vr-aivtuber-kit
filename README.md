@@ -1,163 +1,160 @@
 # vr-aivtuber-kit
-Pythonで中身を使う、Unityで動かすタイプのAITuberを作りたくて始めました。
 
-## インストール
+このプロジェクトは、Unityで動くAIチューバーのサンプルです。
+
+Pythonで「裏側の計算」を動かし、Unityでその結果を受け取ってキャラクターを動かします。
+
+> FastAPIなどの専門用語は内部で使われていますが、使う側は気にせずに、下の手順を順番に実行するだけで動かせます。
+
+## 0. すぐに始める簡単な手順
+
+1. このリポジトリのフォルダを開きます。
+2. Windowsなら `install.bat`、Linux/macOSなら `./install.sh` を実行します。
+3. Windowsなら `build_backend.bat`、Linux/macOSなら `./build_backend.sh` を実行します。
+4. Unityを開いて `serverUrl` を `http://localhost:8000` に設定し、再生ボタンを押します。
+
+> まずは「1つずつ順番に実行する」だけを試してください。専門用語はあとからゆっくり理解できます。
+
+## 1. 準備（必要なもの）
+
+### Windowsの場合
+- Unity Editor
+- Python 3 がインストールされていること
+
+### Linux / macOSの場合
+- Unity Editor
+- Python 3 がインストールされていること
+
+> Unityはゲームを作るためのソフトです。Unity Editorを使ってこのプロジェクトを開きます。
+
+## 2. 簡単なインストール手順
+
+このプロジェクトには、Pythonの必要な部品を自動で用意する「インストールスクリプト」が入っています。
 
 ### Windows
-1. リポジトリのルートで以下を実行します。
+1. このリポジトリのフォルダを開きます。
+2. `install.bat` をダブルクリックするか、コマンドプロンプトで次を実行します。
 
 ```bat
 install.bat
 ```
 
-2. `build_backend.bat` でバックエンドを起動します。
-
-```bat
-build_backend.bat
-```
-
 ### Linux / macOS
-1. リポジトリのルートで以下を実行します。
+1. このリポジトリのフォルダを開きます。
+2. ターミナルで次を実行します。
 
 ```bash
 ./install.sh
 ```
 
-2. `backend/build_backend.sh` でバックエンドを起動します。
+この操作で、Pythonの専用フォルダを作り、必要な部品をインストールします。
 
-```bash
-./backend/build_backend.sh
+## 3. バックエンド（裏側のプログラム）を起動する
+
+このプロジェクトでは、Unityと一緒に動く「裏側のプログラム」を起動する必要があります。
+
+### Windows
+```bat
+build_backend.bat
 ```
 
-3. Unity の実行やビルドは Unity Editor が必要です。
-
-## 起動方法
-
-### 1. Python/FastAPI サーバーを起動
-
+### Linux / macOS
 ```bash
 ./build_backend.sh
 ```
 
-まずはPC単体で動作確認します。Unity Editorと同じPCで `http://localhost:8000/health` にアクセスできることを確認してください。
+このコマンドを実行すると、裏側のプログラムが動き始めます。
+
+### 確認方法
+ブラウザで次のアドレスを開き、画面が表示されれば裏側のプログラムは動いています。
 
 ```
 http://localhost:8000/health
 ```
 
-### 2. Unity アプリの実行
+表示例:
 
-1. Unity Editor でプロジェクトを開く
-2. `AITuberController` がアタッチされている GameObject を選択
-3. `serverUrl` を `http://localhost:8000` に変更
-4. `WorldCommentUI` を割り当てる（必要なら `commentPrefab` を指定）
-5. シーンを再生して動作確認
+```json
+{"status": "ok", "message": "backend running"}
+```
 
-> スマホ接続や別端末からのアクセスは現時点では拡張設定として後回しにし、まずはPCだけで動かしてください。
+## 4. Unityでプロジェクトを開く
 
-### 3. Windows EXE / Android APK のビルド
+1. Unity Editorを起動します。
+2. `vr-aivtuber-kit` フォルダをUnityで開きます。
+3. シーンを開きます。
+4. `AITuberController` がアタッチされているオブジェクトを選びます。
+5. `serverUrl` に次の値を入れます。
 
-まずはPC向けの Windows Standalone ビルドで動作確認することをおすすめします。Android APK は必要な場合に後から追加する拡張機能です。
+```
+http://localhost:8000
+```
 
-Unity Editor のメニュー `Build > Build Windows Standalone` を選択すると、以下に出力されます。
+6. `WorldCommentUI` を設定します。
+7. 再生ボタンを押して、シーンを実行します。
 
-- `Build/Windows/vr-aivtuber-kit.exe`
+> Unityの操作に不慣れな場合は、まず「Unity Editorでシーンを開く」「再生ボタンを押す」だけを確認してください。
 
-> Android APK のビルドはオプションです。`Build > Build Android APK` を選択して出力することもできますが、Android Build Support を追加しておく必要があります。
+## 5. 何が動くのか
 
-## 現在実装されている主な機能
+このプロジェクトを動かすと、次のことができます。
 
-- Python FastAPI から `POST /chat` で応答を取得
-- Unity からサーバーへ JSON を送信して音声を受け取る
-- 受け取った Base64 音声を WAV 形式に変換して再生
-- `WorldCommentUI` にコメントを追加し、古いものを自動削除
-- コメントのフェードインと浮遊アニメーション
-- `AITuberController` で顔のブレンドシェイプ感情表現
-- YouTube動画IDからコメントを取得する `POST /youtube-comments`
-- 音声録音をUnity側で取得して `POST /voice` に送信する機能
-- テキスト入力を送信して返答を得る機能
-- スマホ接続や別端末連携は拡張機能として扱い、初期状態ではPC単体で動作します
+- Unity内のキャラクターがAIの応答を受け取る
+- 応答を音声に変換して再生する
+- 画面にコメントを表示する
+- リモート操作や音声入力、YouTubeコメント取得などの仕組みも入っています
 
-## 追加の環境変数
+## 6. よくある使い方
 
-- `YOUTUBE_API_KEY` : YouTube API を利用してコメントを取得する場合に必要です。
-- `STT_URL` : 音声入力を文字起こしする STT サービスの URL を設定すると、`POST /voice` で音声内容を元に応答を生成できます。
+### まずはPCだけで動かす
+1. `install.bat` / `./install.sh` を実行して必要な準備をする
+2. `build_backend.bat` / `./build_backend.sh` で裏側を起動する
+3. Unityでプロジェクトを開き、`serverUrl` を `http://localhost:8000` に設定する
+4. Unityの再生ボタンを押す
 
-## 追加機能の使い方
+### 今すぐ動かしたいときのポイント
+- PythonやFastAPIは裏側で使われている仕組みです。特に理解する必要はありません。
+- まずは「裏側のプログラムを起動する」「Unityで同じPCのURLに接続する」という流れだけ覚えてください。
+- `localhost` は「このPCを指す特別な住所」です。
 
-### YouTubeコメント取得
-1. Unity側で `ChatFeatureController` を作成し、`youtubeVideoIdField` に動画IDを入力
-2. `FetchYouTubeComments()` をボタンに割り当て
-3. コメントが取得されると `WorldCommentUI` に順番に表示されます
-4. `generate_reply=true` の設定により、YouTubeコメントを元にAIの返信を生成し、`WorldCommentUI` 上にも表示します
+## 7. 追加の機能と拡張
 
-### 音声入力送信
-1. Unity側で `ChatFeatureController` を作成し、`StartVoiceRecording()` と `StopVoiceRecordingAndSend()` をボタンに割り当て
-2. マイクで録音
-3. `StopVoiceRecordingAndSend()` で録音を終了すると、音声データが `/voice` に送信されます
-4. バックエンドが文字起こしサービス (`STT_URL`) を使って内容を解析できれば、その内容を元にAI返信を生成します
-5. 応答メッセージは `WorldCommentUI` に表示され、返答音声が再生されます
+### YouTubeコメントを表示する
+- Unity側で `ChatFeatureController` を使い、動画IDを入力すると、YouTubeコメントを取得できます。
+- `YOUTUBE_API_KEY` が必要です。用意していない場合はこの機能は使えません。
 
-### 文字入力送信
-1. Unity側で `ChatFeatureController` を作成し、`textInputField` に文字を入力
-2. `SendTextInput()` をボタンに割り当て
-3. `AITuberController` が既存の `/chat` 送信を使って返答を取得します
+### 音声入力を送る
+- Unity側で録音ボタンを用意し、録音後に音声を送信すると、裏側で文字に変換してAIの返答を生成できます。
+- この機能を使うには、さらに別の文字起こしサービス（`STT_URL`）が必要です。
 
-### スマホリモート操作（拡張機能）
-1. バックエンドを起動した状態で、スマホや別端末のブラウザから `http://<PCのIPアドレス>:8000/remote` にアクセスします。
-2. Webページからチャット送信や、タップ／なでる／げんこつ操作を送信できます。
-3. Unity側に `RemoteControlController` を配置し、`serverUrl` を `http://localhost:8000` に設定しておきます。
-4. Unityのモデルには `ModelInteractionController` を割り当てると、直接タップや右クリックでも反応できます。
-5. `RemoteMonitorController` を追加すると、スマホ側のページにキャラクターの現在の感情と最新ストリームプレビューが表示されます。
+### スマホや別の端末から操作する
+- 裏側のプログラムが動いている状態で、スマホのブラウザから `http://<このPCのIPアドレス>:8000/remote` にアクセスします。
+- これにより、スマホからチャットやタップ操作を送れます。
 
-### キャラクター状態とライブプレビュー
-- スマホの操作ページに現在の感情、直近の反応、タップ数やなで数、げんこつ数を表示します。
-- Unity でキャラクターの状態を定期送信し、リモートページにリアルタイムに反映します。
-- Unity からフレームをキャプチャしてバックエンドに送信し、スマホ側にプレビュー画像を表示します。
+### VRoidHub連携について
+- 今のところ直接のVRoidHub連携は実装していませんが、将来的に追加できます。
+- たとえば、VRoidHubからダウンロードしたモデルをあらかじめUnityに入れておき、シーン内で選べるようにする形です。
+- ユーザー側がモデルを切り替えられるようにしておけば、読み込みの手間を減らせます。
+- もう一歩進めるなら、外部ファイルやWeb経由でモデルを読み込む仕組みを作ると、より使いやすくなります。
 
-### モデルの触れ合い反応
-- 画面上のモデルをタップすると簡単な反応を返します。
-- 何度も触ると少し怒った表情になります。
-- 右クリックやリモート操作の「げんこつ」で、痛がって泣きそうになる反応も追加されています。
-- クリックした位置が頭やお腹だと、反応が変わります。
-- 反応時にはアニメーターのトリガーとブレンドシェイプを同時に使って表情を強化します。
+### 家具配置をあとからできるようにする
+- モードごとに「家具を置ける場所」をあらかじめUnity上で設定できます。
+- たとえば、`SleepOver` ならベッドの横、`SofaChat` ならソファの周りに配置ポイントを置きます。
+- ユーザーはそのモードに切り替えて、用意された配置ポイントに好きな家具を置けるようになります。
+- 家具の大きさはユーザーが変更できるようにし、モデルの大きさも設定できるようにします。
+- これにより「シーンごとの家具の置き場所は決めておき、後はユーザーが好きな家具と大きさを選ぶ」運用が可能になります。
+- `Assets/Scripts/FurniturePlacementController.cs` を使うと、モードごとの配置ポイントと家具リストをUnityのInspectorから組み合わせられます。
+- `Assets/Scripts/CharacterSettingsController.cs` にはモデルの大きさ設定項目を追加しました。
+- さらに進めるなら、家具の追加や配置の編集をUIでできるようにすれば、初心者でも扱いやすくなります。
 
-### Play Mode テスト
-- `Assets/Tests/PlayModeTests.cs` に Play Mode テストを追加しました。
-- Unity の Test Runner で `Play Mode` テストを実行できます。
-- テストを実行するには Unity Test Framework がプロジェクトにインストールされている必要があります。
-- テスト内容:
-  - `WorldCommentUI` がコメントを追加／削除できること
-  - コメントの全削除機能が動作すること
-  - `WavUtility` の WAV 変換が音声データを保持して再生成できること
+## 8. 使い始めの注意
 
-### キャラクター設定画面
-1. `CharacterSettingsController` を Unity シーンに追加
-2. `settingsPanel` に設定画面のパネルを割り当てる
-3. `openSettingsButton` に設定画面を開くボタンを割り当てる
-4. `closeSettingsButton` に設定画面を閉じるボタンを割り当てる
-5. `applySettingsButton` に設定を保存するボタンを割り当てる
-6. `modelDropdown` に読み込み可能な 3D モデルプレハブを登録
-7. `characterNameField`, `personalityPromptField`, `llmApiUrlField`, `llmModelField`, `ttsApiUrlField`, `ttsModelField`, `youtubeModeToggle`, `youtubeApiUrlField`, `youtubeApiKeyField` をそれぞれ割り当てる
+- まずはPC単体で動かすのがいちばん簡単です。スマホ接続やAndroidビルドは後回しで大丈夫です。
+- Unityのビルドや実行には `Unity Editor` が必要です。
+- `YOUTUBE_API_KEY` や `STT_URL` は、必要な機能を使うときだけ設定してください。
 
-設定を保存すると、`AITuberController` の `userId` と `context` にキャラクター名・性格プロンプトが反映されます。
-
-### シーンモード設定画面
-1. `SceneModeController` を Unity シーンに追加
-2. `settingsPanel` にシーンモード設定パネルを割り当てる
-3. `openSettingsButton` にシーンモード設定を開くボタンを割り当てる
-4. `closeSettingsButton` にシーンモード設定を閉じるボタンを割り当てる
-5. `applySettingsButton` に選択中のシーンモードを適用するボタンを割り当てる
-6. `modeButtonPrefab` にモード選択ボタンのプレハブを割り当て、`modeButtonContainer` に配置
-7. `modeTitleText`, `modeDescriptionText`, `statusText` を割り当てる
-8. `customModeNameField`, `customModeDescriptionField`, `customSettingsField` を割り当てると、カスタムフリーモードで独自設定を入力可能
-9. `modeDefinitions` に各シーンモードの `modeObjects` や `animators` を登録して、モードごとにアセット配置とアニメーションを切り替えられるようにする
-
-シーンモードは次の7種類です:
-- 対面お喋りモード
-- 添い寝モード
-- 膝枕モード
-- 歩き回りながらしゃべるモード
-- ライブ配信モード
-- ソファに座って隣でお喋りモード
-- カスタムフリーモード
+## 9. 開発者向け補足（読み飛ばしてOK）
+- `backend` フォルダの中に、裏側のプログラムがあります。
+- `install.sh` / `install.bat` は、Pythonの環境と必要なパーツを準備するためのスクリプトです。
+- `build_backend.sh` / `build_backend.bat` は、裏側のプログラムを動かすためのスクリプトです。
+- そのため、専門用語に詳しくなくても、順番どおりに実行すれば動きます。

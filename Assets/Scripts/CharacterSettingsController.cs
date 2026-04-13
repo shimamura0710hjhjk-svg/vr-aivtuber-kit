@@ -16,6 +16,7 @@ public class CharacterSettings
     public bool youtubeMode = false;
     public string youtubeApiUrl = "";
     public string youtubeApiKey = "";
+    public float modelScale = 1.0f;
     public int selectedModelIndex = 0;
 }
 
@@ -34,6 +35,9 @@ public class CharacterSettingsController : MonoBehaviour
     public Vector3 previewLocalPosition = Vector3.zero;
     public Vector3 previewLocalEulerAngles = Vector3.zero;
     public Vector3 previewLocalScale = Vector3.one;
+
+    [Header("Model Size")]
+    public TMP_InputField modelScaleField;
 
     [Header("Character Data")]
     public TMP_InputField characterNameField;
@@ -180,6 +184,11 @@ public class CharacterSettingsController : MonoBehaviour
             CurrentSettings.ttsModel = ttsModelField.text?.Trim() ?? CurrentSettings.ttsModel;
         }
 
+        if (modelScaleField != null && float.TryParse(modelScaleField.text, out float modelScale))
+        {
+            CurrentSettings.modelScale = Mathf.Max(0.1f, modelScale);
+        }
+
         if (youtubeModeToggle != null)
         {
             CurrentSettings.youtubeMode = youtubeModeToggle.isOn;
@@ -250,6 +259,11 @@ public class CharacterSettingsController : MonoBehaviour
         {
             youtubeApiKeyField.text = CurrentSettings.youtubeApiKey;
         }
+
+        if (modelScaleField != null)
+        {
+            modelScaleField.text = CurrentSettings.modelScale.ToString("0.##");
+        }
     }
 
     private void LoadSelectedModel()
@@ -278,7 +292,7 @@ public class CharacterSettingsController : MonoBehaviour
         currentModelInstance = Instantiate(prefab, modelPreviewRoot);
         currentModelInstance.transform.localPosition = previewLocalPosition;
         currentModelInstance.transform.localEulerAngles = previewLocalEulerAngles;
-        currentModelInstance.transform.localScale = previewLocalScale;
+        currentModelInstance.transform.localScale = previewLocalScale * CurrentSettings.modelScale;
     }
 
     public string BuildCharacterContext()
