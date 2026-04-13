@@ -1,6 +1,36 @@
 # vr-aivtuber-kit
 Pythonで中身を使う、Unityで動かすタイプのAITuberを作りたくて始めました。
 
+## インストール
+
+### Windows
+1. リポジトリのルートで以下を実行します。
+
+```bat
+install.bat
+```
+
+2. `build_backend.bat` でバックエンドを起動します。
+
+```bat
+build_backend.bat
+```
+
+### Linux / macOS
+1. リポジトリのルートで以下を実行します。
+
+```bash
+./install.sh
+```
+
+2. `backend/build_backend.sh` でバックエンドを起動します。
+
+```bash
+./backend/build_backend.sh
+```
+
+3. Unity の実行やビルドは Unity Editor が必要です。
+
 ## 起動方法
 
 ### 1. Python/FastAPI サーバーを起動
